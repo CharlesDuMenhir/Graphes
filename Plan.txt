@@ -1,0 +1,12 @@
+mon_projet_delaunay/
+│
+├── main.py                # Point d’entrée de ton programme
+├── geometry.py            # Contient les classes Point, Triangle, etc.				Pas fait
+├── delaunay.py            # Contient l’algorithme de triangulation
+├── visualisation.py       # Fonctions pour dessiner                					Fait dans le main
+└── utils.py               # Fonctions mathématiques (cercle, orientation, etc.)
+
+
+A faire:
+Delaunay sur un tore
+Gabriel Graph
