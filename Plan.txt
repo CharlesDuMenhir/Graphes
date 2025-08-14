@@ -8,5 +8,9 @@ mon_projet_delaunay/
 
 
 A faire:
+Fancyser le menu
+
+
+new features:
 Delaunay sur un tore
 Gabriel Graph

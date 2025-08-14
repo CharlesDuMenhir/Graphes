@@ -91,7 +91,8 @@ class Del_Tri:
 
 if __name__ == "__main__":
     D = Del_Tri("INF")
-    points=[(0,0), (2,2), (4,0), (-1,-1), (1,0)]
+    points=[(0,0), (1,1), (1,0), (0,1)] #points cocycliques
     D.creates_Tri(points)
     print("points:", D.points)
+    
     print(D.faces)

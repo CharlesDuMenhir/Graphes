@@ -23,10 +23,6 @@ def in_circle( a, b, c, p):
     )
     return det > 0  
 
-def have_common_element(l1, l2):
-    """Teste si deux listes ont des élément en commun"""
-    return bool(set(l1) & set(l2))
-
 def isClockwise(a, b, c):
     """
     Renvoie True si a b c clockwise
@@ -37,3 +33,28 @@ def isClockwise(a, b, c):
 
     det = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
     return det > 0
+
+def create_copies(points, width):
+    # crée des copies de la liste de points autour de l'écran
+    # w est la largueur de l'écran
+    copies = []
+    h_width = width // 2
+    for p in points: # faire une fonction
+        px, py = p
+        if px < h_width and py < h_width:
+            copies.append((px + width, py))
+            copies.append((px, py + width))
+            copies.append((px + width, py + width))
+        if px < h_width and py >= h_width:
+            copies.append((px + width, py))
+            copies.append((px, py - width))
+            copies.append((px + width, py - width))
+        if px >= h_width and py < h_width:
+            copies.append((px - width, py))
+            copies.append((px, py + width))
+            copies.append((px - width, py + width))
+        if px >= h_width and py >= h_width:
+            copies.append((px - width, py))
+            copies.append((px, py - width))
+            copies.append((px - width, py - width))
+    return(copies)
