@@ -34,6 +34,20 @@ def isClockwise(a, b, c):
     det = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
     return det > 0
 
+def in_Gab_Circle(edge, p):
+    a, b = edge
+    # a, b, p sont des tuples (x, y)
+    a_x, a_y = a
+    b_x, b_y = b
+    p_x, p_y = p
+    c_x = (a_x + b_x) / 2
+    c_y = (a_y + b_y) / 2
+    r2 = ((a_x - b_x)**2 + (a_y - b_y)**2) / 4
+    d2 = ((p_x - c_x)**2 + (p_y - c_y)**2)
+    return d2 < r2
+
+
+
 def create_copies(points, width):
     # crée des copies de la liste de points autour de l'écran
     # w est la largueur de l'écran

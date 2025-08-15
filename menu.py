@@ -1,6 +1,6 @@
 import pygame
 
-class Menu():
+class Menu:
     def __init__(self, screen, x_pos, size):
         self.screen = screen
         self.x_pos = x_pos # pos horizontale de menu
@@ -12,7 +12,7 @@ class Menu():
         pygame.draw.rect(self.screen, "black", (x, 0, w, h)) # fond noir du menu
         pygame.draw.line(self.screen, "grey",(x, 0), (x, h)) # ligne grise verticale
         
-class Button():
+class Button:
     #Source : BaralTech
     def __init__(self, screen, font, text_input, activable = False, actif = False):
         self.screen = screen
@@ -23,8 +23,11 @@ class Button():
         self.activable = activable
         self.actif = actif
 
-    def set_activable(self):
-        self.activable = True
+    def switch_activable(self):
+        self.activable = not self.activable
+
+    def is_activable(self):
+        return self.activable
         
     def set_actif(self):
         self.actif = True
@@ -41,6 +44,10 @@ class Button():
     def set_pos(self, x_pos, y_pos):  
         self.rect.x = x_pos
         self.rect.y = y_pos
+
+    def change_text_to(self, font, new_text):
+        self.text_input = new_text
+        self.text = font.render(self.text_input, True, "white")
 
     def draw(self):
         if self.is_actif():
