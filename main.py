@@ -24,6 +24,7 @@ b_plan = menu.Button(screen, font, " Plan ", True, True)
 b_tore = menu.Button(screen, font, " Tore plat ", True)
 t_act = menu.Button(screen, font, "Actions :")
 b_gen = menu.Button(screen, font, " Générer points ", True)
+b_n = menu.Button(screen, font, "   100 ", True)
 b_ajout = menu.Button(screen, font, " Ajouter point ", True)
 b_suppr = menu.Button(screen, font, " Supprimer points ", True)
 t_graph = menu.Button(screen, font, "Graphes :")
@@ -47,6 +48,8 @@ menu_action = [t_act, b_gen, b_ajout, b_suppr]
 for b in menu_action:
     b.set_pos(MENU_LEFT, HEIGHT_BOUTONS)
     HEIGHT_BOUTONS += INTER_BOUTONS
+
+b_n.set_pos(b_gen.rect.x + 150, b_gen.rect.y)
     
 HEIGHT_BOUTONS += INTER_BOUTONS
 menu_graphe = [t_graph, b_Del, b_Gab]
@@ -55,16 +58,6 @@ for b in menu_graphe:
     HEIGHT_BOUTONS += INTER_BOUTONS
 
 b_OnOff.set_pos(b_Gab.rect.x + 100, b_Gab.rect.y)
-
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GRAY = (200, 200, 200)
-
-TEXT_COLOR = "white"
-TEXT_COLOR_ACTIF = "cyan"
-
-
-
 
 
 #Pour les graphes
@@ -78,7 +71,8 @@ def main():
     clock = pygame.time.Clock()
 
     points = []
-    n = 100 # nombre de points
+    n = 100 # nombre de points à générer par defaut
+    input_text = ''
     triangulation = Del_Tri(POINT_INF)
     gabriel = Gabriel(POINT_INF)
     while running:
@@ -94,7 +88,7 @@ def main():
                 if x >= WIDTH:
                     b_ajout.set_inactif()
 
-                if b_plan.under_mouse((x, y)):
+                if b_plan.rect.collidepoint((x, y)):
                     if not b_plan.is_actif():
                         points = []
                         b_plan.set_actif()
@@ -102,7 +96,7 @@ def main():
                         triangulation = Del_Tri(POINT_INF)
                         gabriel = Gabriel(POINT_INF)
 
-                if b_tore.under_mouse((x, y)):
+                if b_tore.rect.collidepoint((x, y)):
                     if not b_tore.is_actif():
                         points = []
                         b_plan.set_inactif()
@@ -116,7 +110,7 @@ def main():
                         if b_Gab.is_activable():
                             gabriel.extract_Gab_from_Del(points, triangulation.faces)
 
-                if b_gen.under_mouse(mouse_pos):
+                if b_gen.rect.collidepoint(mouse_pos):
                     # Supprimer l'ancienne triangulation et genere des points
                     # crée les graphes
                     points = []
@@ -135,7 +129,11 @@ def main():
                     if b_Gab.is_activable():
                         gabriel.extract_Gab_from_Del(points, triangulation.faces)
 
-                if b_ajout.under_mouse(mouse_pos):
+                if b_n.rect.collidepoint(mouse_pos):
+                    b_n.set_actif()
+                    input_text = ''
+
+                if b_ajout.rect.collidepoint(mouse_pos):
                     b_ajout.set_actif()
 
                 if x < WIDTH and b_ajout.is_actif():
@@ -151,7 +149,7 @@ def main():
                     if b_Gab.is_activable():
                         gabriel.extract_Gab_from_Del(points, triangulation.faces)
 
-                if b_suppr.under_mouse(mouse_pos):
+                if b_suppr.rect.collidepoint(mouse_pos):
                     #Supprimer les points
                     points = []
                     triangulation = Del_Tri(POINT_INF)
@@ -164,23 +162,50 @@ def main():
                         if b_Gab.is_activable():
                             gabriel.extract_Gab_from_Del(points, triangulation.faces)
 
-                if b_Del.under_mouse(mouse_pos):
+                if b_Del.rect.collidepoint(mouse_pos):
                     #Affiche/masque la triangulation
                     b_Del.switch_actif()
 
-                if b_Gab.under_mouse(mouse_pos):
+                if b_Gab.rect.collidepoint(mouse_pos):
                     #Affiche/masque la triangulation
                     if b_OnOff.text_input == " ON ":
                         b_Gab.switch_actif()
                 
-                if b_OnOff.under_mouse(mouse_pos):
+                if b_OnOff.rect.collidepoint(mouse_pos):
                     # desactive gabriel
                     b_Gab.switch_activable()
                     if b_OnOff.text_input == " OFF ":
                         b_OnOff.change_text_to(font," ON ")
+                        gabriel.extract_Gab_from_Del(points, triangulation.faces)
+
                     else:
                         b_OnOff.change_text_to(font," OFF ")
                         b_Gab.set_inactif()
+                        gabriel = Gabriel(POINT_INF)
+
+            elif event.type == pygame.KEYDOWN:
+                if b_n.is_actif():
+                    if event.key == pygame.K_RETURN:
+                        print("Nombre entré :", input_text)
+                        # Tu peux convertir en int ici si besoin
+                        try:
+                            new_n = int(input_text)
+                            max_n = 1000
+                            if 0 < new_n and new_n <= 1000:
+                                n = new_n
+                            else:
+                                print("max = ", max_n)
+                        except ValueError:
+                            print("Entrée invalide")    
+                        input_text = str(n)
+                        b_n.set_inactif()
+                    elif event.key == pygame.K_BACKSPACE:
+                        input_text = input_text[:-1]
+                    else:
+                        input_text += event.unicode
+                    b_n.change_text_to(font," " + input_text)
+
+
                 
         screen.fill((0, 0, 0)) #background
         if b_Del.is_actif():
@@ -189,9 +214,8 @@ def main():
             visu.draw_Gab_edges(screen, gabriel.Gab_edges)
         visu.draw_points(screen, points)
         option_menu.draw_menu_window()
-        for b in menu_surface + menu_action + menu_graphe + [b_OnOff]:
-            b.draw_hover(mouse_pos)
-            b.draw()
+        for b in menu_surface + menu_action + [b_n] + menu_graphe + [b_OnOff]:
+            b.draw(mouse_pos)
  
         pygame.display.flip()     # Affiche le rendu
 
