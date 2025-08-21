@@ -21,7 +21,7 @@ class Del_Tri:
 
         if len(self.points) == 3:
             a, b, c = self.points
-            if not utils.isClockwise(a,b,c): # les triangles internes sont clockwise
+            if not utils.is_clockwise(a,b,c): # les triangles internes sont clockwise
                 b, c = c, b
             self.faces.append((a, b, c))
             self.faces.append((c, b, self.inftyPoint)) # les triangles exterieurs sont orientés dans le même sens 
@@ -41,7 +41,7 @@ class Del_Tri:
         for triangle in self.faces:
             a, b, c = triangle
             if c == self.inftyPoint:
-                if utils.isClockwise(a, b, p):
+                if utils.is_clockwise(a, b, p):
                     conflict_zone.append(triangle)
             else :
                 if utils.in_circle(a, b, c, p):
@@ -127,6 +127,7 @@ class Gabriel:
             if good_edge:
                 self.Gab_edges.append(edge)
 
+    # non utilisé car plus couteux
     def add_point(self, new_p):
         self.points.append(new_p)
         if len(self.points) < 2:

@@ -3,7 +3,7 @@ import pygame
 import random
 
 #imports locaux
-from delaunay2D import *
+from graphs import *
 import menu
 import visu
 
@@ -11,7 +11,7 @@ pygame.init()
 
 # création de la fenetre jeu + menu
 FPS = 60
-WIDTH, HEIGHT = 600, 600 # fenetre de jeu
+WIDTH, HEIGHT = 800, 800 # fenetre de jeu
 MENU_WIDTH = 300 # fenetre du menu
 FONT_SIZE = 15
 screen = pygame.display.set_mode((WIDTH + MENU_WIDTH, HEIGHT))
@@ -20,11 +20,11 @@ font = pygame.font.SysFont("arialblack", FONT_SIZE)
 #menu
 option_menu = menu.Menu(screen, WIDTH, (MENU_WIDTH, HEIGHT))
 t_surf = menu.Button(screen, font, "Surfaces :")
-b_plan = menu.Button(screen, font, " Plan ", True, True)
-b_tore = menu.Button(screen, font, " Tore plat ", True)
+b_plane = menu.Button(screen, font, " Plan ", True, True)
+b_torus = menu.Button(screen, font, " Tore plat ", True)
 t_act = menu.Button(screen, font, "Actions :")
 b_gen = menu.Button(screen, font, " Générer points ", True)
-b_n = menu.Button(screen, font, "   100 ", True)
+b_n = menu.Button(screen, font, " 100   ", True)
 b_ajout = menu.Button(screen, font, " Ajouter point ", True)
 b_suppr = menu.Button(screen, font, " Supprimer points ", True)
 t_graph = menu.Button(screen, font, "Graphes :")
@@ -38,7 +38,7 @@ MENU_LEFT = WIDTH + 10 # décalage pour le texte du menu
 HEIGHT_BOUTONS = 40
 INTER_BOUTONS = 25
 
-menu_surface = [t_surf, b_plan, b_tore]
+menu_surface = [t_surf, b_plane, b_torus]
 for b in menu_surface:
     b.set_pos(MENU_LEFT, HEIGHT_BOUTONS)
     HEIGHT_BOUTONS += INTER_BOUTONS
@@ -61,9 +61,10 @@ b_OnOff.set_pos(b_Gab.rect.x + 100, b_Gab.rect.y)
 
 
 #Pour les graphes
-POINT_INF = "POINT_INF" # pour la triangulation dans le plan
 H_WIDTH = WIDTH // 2
-D_POINTS =[(0, 0), (H_WIDTH, 0), (0, H_WIDTH), (H_WIDTH, H_WIDTH)] #les 4 Dummy points pour le tore
+DEL_COLOR = "cyan"
+GAB_COLOR = "red"
+P_COLOR = "yellow"
 
 def main():
     running = True
@@ -71,10 +72,10 @@ def main():
     clock = pygame.time.Clock()
 
     points = []
-    n = 100 # nombre de points à générer par defaut
-    input_text = ''
-    triangulation = Del_Tri(POINT_INF)
-    gabriel = Gabriel(POINT_INF)
+    n = 300 # nombre de points à générer par defaut
+    b_n.change_text_to(font," " + str(n))
+    DT = Delaunay_Triangulation() 
+    GG = Graph() 
     while running:
         clock.tick(FPS)
         mouse_pos = pygame.mouse.get_pos()
@@ -86,133 +87,124 @@ def main():
                 x, y = mouse_pos
 
                 if x >= WIDTH:
-                    b_ajout.set_inactif()
+                    b_ajout.set_inactive()
 
-                if b_plan.rect.collidepoint((x, y)):
-                    if not b_plan.is_actif():
+                if b_plane.rect.collidepoint((x, y)):
+                    if not b_plane.is_active():
                         points = []
-                        b_plan.set_actif()
-                        b_tore.set_inactif()
-                        triangulation = Del_Tri(POINT_INF)
-                        gabriel = Gabriel(POINT_INF)
+                        b_plane.set_active()
+                        b_torus.set_inactive()
+                        DT = Delaunay_Triangulation()
+                        GG = Graph() 
 
-                if b_tore.rect.collidepoint((x, y)):
-                    if not b_tore.is_actif():
+                if b_torus.rect.collidepoint((x, y)):
+                    if not b_torus.is_active():
                         points = []
-                        b_plan.set_inactif()
-                        b_tore.set_actif()
-                        triangulation = Del_Tri(POINT_INF)
-                        gabriel = Gabriel(POINT_INF)
-                        points.extend(D_POINTS) 
-                        copies = utils.create_copies(points, WIDTH)
+                        b_plane.set_inactive()
+                        b_torus.set_active()
+                        DT = Delaunay_Triangulation()
+                        GG = Graph() 
+                        copies = geom.create_copies(points, WIDTH)
                         points.extend(copies)
-                        triangulation.creates_Tri(points)
+                        DT.build(points)
                         if b_Gab.is_activable():
-                            gabriel.extract_Gab_from_Del(points, triangulation.faces)
+                            GG.extract_Gab_from_Del(DT)
 
                 if b_gen.rect.collidepoint(mouse_pos):
                     # Supprimer l'ancienne triangulation et genere des points
                     # crée les graphes
                     points = []
-                    triangulation = Del_Tri(POINT_INF)
-                    gabriel = Gabriel(POINT_INF)
+                    DT = Delaunay_Triangulation()
+                    GG = Graph() 
                     
                     # Genere n points
                     for _ in range(n):
                         x = WIDTH * random.random()
                         y = HEIGHT * random.random()
                         points.append((x,y))
-                    if b_tore.is_actif():  # on considère qu'il y a suffisament de points pour éviter les dummy points
-                        copies = utils.create_copies(points, WIDTH)
+                    if b_torus.is_active():  # on considère qu'il y a suffisament de points pour éviter les dummy points
+                        copies = geom.create_copies(points, WIDTH)
                         points.extend(copies)
-                    triangulation.creates_Tri(points)
+                    DT.build(points)
                     if b_Gab.is_activable():
-                        gabriel.extract_Gab_from_Del(points, triangulation.faces)
+                            GG.extract_Gab_from_Del(DT)
 
                 if b_n.rect.collidepoint(mouse_pos):
-                    b_n.set_actif()
+                    b_n.set_active()
                     input_text = ''
 
                 if b_ajout.rect.collidepoint(mouse_pos):
-                    b_ajout.set_actif()
+                    b_ajout.set_active()
 
-                if x < WIDTH and b_ajout.is_actif():
+                if x < WIDTH and b_ajout.is_active():
                     if x < WIDTH : # Si dans le jeu
                         points.append((x, y))
-                        triangulation.add_point((x, y))
-                        if b_tore.is_actif():
-                            copies = utils.create_copies([(x,y)], WIDTH)
+                        DT.insert_point((x,y))
+                        if b_torus.is_active():
+                            copies = geom.create_copies([(x,y)], WIDTH)
                             for copie in copies:
-                                triangulation.add_point(copie)
+                                DT.insert_point(copie)
                             points.extend(copies) 
-                    gabriel = Gabriel(POINT_INF) #recalcule tout le graph de Delaunay à chaque fois
+                    GG = Graph()
                     if b_Gab.is_activable():
-                        gabriel.extract_Gab_from_Del(points, triangulation.faces)
+                            GG.extract_Gab_from_Del(DT)
 
                 if b_suppr.rect.collidepoint(mouse_pos):
                     #Supprimer les points
                     points = []
-                    triangulation = Del_Tri(POINT_INF)
-                    gabriel = Gabriel(POINT_INF)
-                    if b_tore.is_actif():
-                        points.extend(D_POINTS)
-                        copies = utils.create_copies(points, WIDTH)
-                        points.extend(copies)
-                        triangulation.creates_Tri(points)
-                        if b_Gab.is_activable():
-                            gabriel.extract_Gab_from_Del(points, triangulation.faces)
+                    DT = Delaunay_Triangulation()
+                    GG = Graph()
 
                 if b_Del.rect.collidepoint(mouse_pos):
                     #Affiche/masque la triangulation
-                    b_Del.switch_actif()
+                    b_Del.switch_active()
 
                 if b_Gab.rect.collidepoint(mouse_pos):
                     #Affiche/masque la triangulation
                     if b_OnOff.text_input == " ON ":
-                        b_Gab.switch_actif()
+                        b_Gab.switch_active()
                 
                 if b_OnOff.rect.collidepoint(mouse_pos):
                     # desactive gabriel
                     b_Gab.switch_activable()
                     if b_OnOff.text_input == " OFF ":
                         b_OnOff.change_text_to(font," ON ")
-                        gabriel.extract_Gab_from_Del(points, triangulation.faces)
+                        GG.extract_Gab_from_Del(DT)
 
                     else:
                         b_OnOff.change_text_to(font," OFF ")
-                        b_Gab.set_inactif()
-                        gabriel = Gabriel(POINT_INF)
+                        b_Gab.set_inactive()
+                        GG = Graph()
 
             elif event.type == pygame.KEYDOWN:
-                if b_n.is_actif():
+                if b_n.is_active():
                     if event.key == pygame.K_RETURN:
                         print("Nombre entré :", input_text)
                         # Tu peux convertir en int ici si besoin
                         try:
                             new_n = int(input_text)
-                            max_n = 1000
-                            if 0 < new_n and new_n <= 1000:
+                            max_n = 5000
+                            if 0 < new_n and new_n <= max_n:
                                 n = new_n
                             else:
+                                print("Entrée invalide")
                                 print("max = ", max_n)
                         except ValueError:
                             print("Entrée invalide")    
                         input_text = str(n)
-                        b_n.set_inactif()
+                        b_n.set_inactive()
                     elif event.key == pygame.K_BACKSPACE:
                         input_text = input_text[:-1]
                     else:
                         input_text += event.unicode
                     b_n.change_text_to(font," " + input_text)
 
-
-                
         screen.fill((0, 0, 0)) #background
-        if b_Del.is_actif():
-            visu.draw_edges(screen, triangulation, POINT_INF)
-        if b_Gab.is_actif():    
-            visu.draw_Gab_edges(screen, gabriel.Gab_edges)
-        visu.draw_points(screen, points)
+        if b_Del.is_active():    
+            visu.draw_edges(screen, DT, DEL_COLOR, 2)
+        if b_Gab.is_active():    
+            visu.draw_edges(screen, GG, GAB_COLOR, 3)
+        visu.draw_points(screen, points, P_COLOR)
         option_menu.draw_menu_window()
         for b in menu_surface + menu_action + [b_n] + menu_graphe + [b_OnOff]:
             b.draw(mouse_pos)
