@@ -4,67 +4,75 @@ import random
 
 #imports locaux
 from graphs import *
-import menu
-import visu
+import window
 
 pygame.init()
 
 # création de la fenetre jeu + menu
 FPS = 60
-WIDTH, HEIGHT = 800, 800 # fenetre de jeu
+
+WIDTH, HEIGHT = 700, 700 # fenetre de jeu
 MENU_WIDTH = 300 # fenetre du menu
 FONT_SIZE = 15
 screen = pygame.display.set_mode((WIDTH + MENU_WIDTH, HEIGHT))
-font = pygame.font.SysFont("arialblack", FONT_SIZE)
+font = pygame.font.SysFont("Verdana", FONT_SIZE)
+
+SCALE = window.SCALE
+visu_surface = pygame.Surface((WIDTH * SCALE, HEIGHT * SCALE))  # "écran des graphes",sera rescalée, c'est pour le rendu
 
 #menu
-option_menu = menu.Menu(screen, WIDTH, (MENU_WIDTH, HEIGHT))
-t_surf = menu.Button(screen, font, "Surfaces :")
-b_plane = menu.Button(screen, font, " Plan ", True, True)
-b_torus = menu.Button(screen, font, " Tore plat ", True)
-t_act = menu.Button(screen, font, "Actions :")
-b_gen = menu.Button(screen, font, " Générer points ", True)
-b_n = menu.Button(screen, font, " 100   ", True)
-b_ajout = menu.Button(screen, font, " Ajouter point ", True)
-b_suppr = menu.Button(screen, font, " Supprimer points ", True)
-t_graph = menu.Button(screen, font, "Graphes :")
-b_Del = menu.Button(screen, font, " Delaunay ", True, True)
-b_Gab = menu.Button(screen, font, " Gabriel ", False)
-b_OnOff = menu.Button(screen, font, " OFF ", True)
+t_surf = window.Button(font, "Surfaces :")
+b_plane = window.Button(font, " Plan ", True, True)
+b_torus = window.Button(font, " Tore plat ", True)
+t_act = window.Button(font, "Actions :")
+b_gen = window.Button(font, " Générer points ", True)
+b_n = window.Button(font, " 100   ", True)
+b_ajout = window.Button(font, " Ajouter point ", True)
+b_suppr = window.Button(font, " Supprimer points ", True)
+t_graph = window.Button(font, "Graphes :")
+b_Del = window.Button(font, " Delaunay ", True, True)
+b_Gab = window.Button(font, " Gabriel ", False)
+b_Gab_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_Gab, True)
+b_RNG = window.Button(font, " RNG ", False)
+b_RNG_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_RNG, True)
 # plus tard :
-#b_MST = menu.Button(screen, font, "Min Span Tree")  
+#b_MST = window.Button(screen, font, "Min Span Tree")  
 
 MENU_LEFT = WIDTH + 10 # décalage pour le texte du menu
 HEIGHT_BOUTONS = 40
 INTER_BOUTONS = 25
 
-menu_surface = [t_surf, b_plane, b_torus]
-for b in menu_surface:
+surface_buttons = [t_surf, b_plane, b_torus]
+for b in surface_buttons:
     b.set_pos(MENU_LEFT, HEIGHT_BOUTONS)
     HEIGHT_BOUTONS += INTER_BOUTONS
 
 HEIGHT_BOUTONS += INTER_BOUTONS
-menu_action = [t_act, b_gen, b_ajout, b_suppr]
-for b in menu_action:
+action_buttons = [t_act, b_gen, b_ajout, b_suppr]
+for b in action_buttons:
     b.set_pos(MENU_LEFT, HEIGHT_BOUTONS)
     HEIGHT_BOUTONS += INTER_BOUTONS
 
 b_n.set_pos(b_gen.rect.x + 150, b_gen.rect.y)
     
 HEIGHT_BOUTONS += INTER_BOUTONS
-menu_graphe = [t_graph, b_Del, b_Gab]
-for b in menu_graphe:
+graph_buttons = [t_graph, b_Del, b_Gab, b_RNG]
+for b in graph_buttons:
     b.set_pos(MENU_LEFT, HEIGHT_BOUTONS)
     HEIGHT_BOUTONS += INTER_BOUTONS
 
-b_OnOff.set_pos(b_Gab.rect.x + 100, b_Gab.rect.y)
+ON_OFF_buttons = [b_Gab_ON_OFF, b_RNG_ON_OFF]
+for b in ON_OFF_buttons:
+    b.set_pos(b.cible.rect.x + 100, b.cible.rect.y)
 
+all_buttons = surface_buttons + action_buttons + [b_n] + graph_buttons + ON_OFF_buttons
 
 #Pour les graphes
 H_WIDTH = WIDTH // 2
-DEL_COLOR = "cyan"
+DEL_COLOR = "black"
 GAB_COLOR = "red"
-P_COLOR = "yellow"
+P_COLOR = (50, 45, 100)
+GRAPH_BACKGROUND = "white"
 
 def main():
     running = True
@@ -73,9 +81,14 @@ def main():
 
     points = []
     n = 300 # nombre de points à générer par defaut
-    b_n.change_text_to(font," " + str(n))
+    input_text = " " + str(n)
+    b_n.change_text_to(font, input_text)
     DT = Delaunay_Triangulation() 
-    GG = Graph() 
+    GG = Gabriel_Graph()
+    RNG = Rel_Neighbor_Graph()
+    b_Gab_ON_OFF.graph = GG
+    b_RNG_ON_OFF.graph = RNG
+    graphs = (DT, GG, RNG)
     while running:
         clock.tick(FPS)
         mouse_pos = pygame.mouse.get_pos()
@@ -90,94 +103,88 @@ def main():
                     b_ajout.set_inactive()
 
                 if b_plane.rect.collidepoint((x, y)):
-                    if not b_plane.is_active():
-                        points = []
+                    if not b_plane.is_active:
                         b_plane.set_active()
                         b_torus.set_inactive()
-                        DT = Delaunay_Triangulation()
-                        GG = Graph() 
+                        points = []
+                        for g in graphs:
+                            g.reset()
+                  
 
                 if b_torus.rect.collidepoint((x, y)):
-                    if not b_torus.is_active():
-                        points = []
+                    if not b_torus.is_active:
                         b_plane.set_inactive()
                         b_torus.set_active()
-                        DT = Delaunay_Triangulation()
-                        GG = Graph() 
-                        copies = geom.create_copies(points, WIDTH)
+                        copies = window.create_copies(points, WIDTH)
                         points.extend(copies)
                         DT.build(points)
-                        if b_Gab.is_activable():
-                            GG.extract_Gab_from_Del(DT)
+                        for b in ON_OFF_buttons:
+                            if b.is_ON:
+                                b.graph.extract_from_Del(DT)
 
                 if b_gen.rect.collidepoint(mouse_pos):
                     # Supprimer l'ancienne triangulation et genere des points
                     # crée les graphes
-                    points = []
-                    DT = Delaunay_Triangulation()
-                    GG = Graph() 
-                    
+                    points = []                
                     # Genere n points
                     for _ in range(n):
                         x = WIDTH * random.random()
                         y = HEIGHT * random.random()
                         points.append((x,y))
-                    if b_torus.is_active():  # on considère qu'il y a suffisament de points pour éviter les dummy points
-                        copies = geom.create_copies(points, WIDTH)
+                    if b_torus.is_active:  # on considère qu'il y a suffisament de points pour éviter les dummy points
+                        copies = window.create_copies(points, WIDTH)
                         points.extend(copies)
+                    # et crée les graphes
                     DT.build(points)
-                    if b_Gab.is_activable():
-                            GG.extract_Gab_from_Del(DT)
+                    for b in ON_OFF_buttons:
+                        if b.is_ON:
+                            b.graph.extract_from_Del(DT)
 
                 if b_n.rect.collidepoint(mouse_pos):
                     b_n.set_active()
-                    input_text = ''
+                    input_text = " "
 
                 if b_ajout.rect.collidepoint(mouse_pos):
                     b_ajout.set_active()
 
-                if x < WIDTH and b_ajout.is_active():
+                if x < WIDTH and b_ajout.is_active:
                     if x < WIDTH : # Si dans le jeu
                         points.append((x, y))
                         DT.insert_point((x,y))
-                        if b_torus.is_active():
-                            copies = geom.create_copies([(x,y)], WIDTH)
+                        if b_torus.is_active:
+                            copies = window.create_copies([(x,y)], WIDTH)
                             for copie in copies:
                                 DT.insert_point(copie)
                             points.extend(copies) 
-                    GG = Graph()
-                    if b_Gab.is_activable():
-                            GG.extract_Gab_from_Del(DT)
+                        for b in ON_OFF_buttons:
+                            if b.is_ON:
+                                b.graph.extract_from_Del(DT)
 
                 if b_suppr.rect.collidepoint(mouse_pos):
                     #Supprimer les points
                     points = []
-                    DT = Delaunay_Triangulation()
-                    GG = Graph()
+                    for g in graphs:
+                        g.reset()
 
-                if b_Del.rect.collidepoint(mouse_pos):
-                    #Affiche/masque la triangulation
-                    b_Del.switch_active()
-
-                if b_Gab.rect.collidepoint(mouse_pos):
-                    #Affiche/masque la triangulation
-                    if b_OnOff.text_input == " ON ":
-                        b_Gab.switch_active()
+                for b in graph_buttons:
+                    if b.rect.collidepoint(mouse_pos) and b.is_ON:
+                        #Affiche/masque la triangulation
+                        b.switch_active()
                 
-                if b_OnOff.rect.collidepoint(mouse_pos):
-                    # desactive gabriel
-                    b_Gab.switch_activable()
-                    if b_OnOff.text_input == " OFF ":
-                        b_OnOff.change_text_to(font," ON ")
-                        GG.extract_Gab_from_Del(DT)
-
-                    else:
-                        b_OnOff.change_text_to(font," OFF ")
-                        b_Gab.set_inactive()
-                        GG = Graph()
+                for b in ON_OFF_buttons:
+                    if b.rect.collidepoint(mouse_pos):
+                        # desactive
+                        if b.cible.is_ON:
+                            b.change_text_to(font," OFF ")
+                            b.cible.set_inactive()
+                            b.graph.reset
+                        else:
+                            b.change_text_to(font," ON ")
+                            b.graph.extract_from_Del(DT)   
+                        b.cible.switch_ON_OFF()
 
             elif event.type == pygame.KEYDOWN:
-                if b_n.is_active():
+                if b_n.is_active:
                     if event.key == pygame.K_RETURN:
                         print("Nombre entré :", input_text)
                         # Tu peux convertir en int ici si besoin
@@ -199,16 +206,21 @@ def main():
                         input_text += event.unicode
                     b_n.change_text_to(font," " + input_text)
 
-        screen.fill((0, 0, 0)) #background
-        if b_Del.is_active():    
-            visu.draw_edges(screen, DT, DEL_COLOR, 2)
-        if b_Gab.is_active():    
-            visu.draw_edges(screen, GG, GAB_COLOR, 3)
-        visu.draw_points(screen, points, P_COLOR)
-        option_menu.draw_menu_window()
-        for b in menu_surface + menu_action + [b_n] + menu_graphe + [b_OnOff]:
-            b.draw(mouse_pos)
- 
+        
+        screen.fill(window.DARK_BLUE)
+        visu_surface.fill(GRAPH_BACKGROUND)
+        if b_Del.is_active:    
+                window.draw_edges(visu_surface, DT, DEL_COLOR, 2)
+        if b_Gab.is_active:
+            window.draw_edges(visu_surface, GG, GAB_COLOR, 3)  
+        if b_RNG.is_active:
+            window.draw_edges(visu_surface, RNG, "blue", 3)   
+        window.draw_points(visu_surface, points, P_COLOR)
+        scaled_surface = pygame.transform.smoothscale(visu_surface, (WIDTH, HEIGHT))
+        screen.blit(scaled_surface, (0, 0))
+        window.draw_menu_line(screen, WIDTH, (MENU_WIDTH, HEIGHT))
+        for b in all_buttons:
+            window.draw_button(screen, b, mouse_pos)
         pygame.display.flip()     # Affiche le rendu
 
     pygame.quit()

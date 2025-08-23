@@ -89,6 +89,15 @@ def in_Gab_Circle(a, b, p):
     d2 = square_dist(c, p)
     return d2 < r2
 
+def in_RNG_Moon(a, b, p):
+    """
+    Renvoie True si p est dans la Moon dont edge est l'arete
+    """
+    d2ab = square_dist(a, b)
+    d2ap = square_dist(a, p)
+    d2bp = square_dist(b, p)
+    return d2ap < d2ab and d2bp < d2ab
+
 
 #------------------------------------       Objets géométriques          ------------------------
 
@@ -129,7 +138,7 @@ class Oriented_Triangle(Oriented_Face):
         else:
             return in_circle(a, b, c, p)
         
-    def is_visible_from(self, p):
+    def contains(self, p):
         # renvoie True si p est dans le triangle, ou visible par le triangle infini
         a, b, c = self.vertices
         if c == INF_P:
@@ -150,9 +159,13 @@ class Oriented_Edge(Oriented_Face):
     def has_0_on_left(self):
         a, b = self.vertices
         return are_clockwise(a, b, (0, 0))
+    
+    def length(self):
+        a, b = self.vertices
+        return square_dist(a, b)
 
     def Gab_Circle_contains(self, p):
-        # renvoie True si p est dans le cercle circonscrit au triangle
+        # renvoie True si p est dans le cercle de diamètre [ab]
         a, b = self.vertices
         if a == INF_P:
             return True
@@ -163,37 +176,19 @@ class Oriented_Edge(Oriented_Face):
         else:
             return in_Gab_Circle(a, b, p)
         
-
-    
-
-
-def create_copies(points, width):
-    # crée des copies de la liste de points autour de l'écran
-    # w est la largueur de l'écran
-    copies = []
-    h_width = width // 2
-    for p in points: # faire une fonction
-        px, py = p
-        if px < h_width and py < h_width:
-            copies.append((px + width, py))
-            copies.append((px, py + width))
-            copies.append((px + width, py + width))
-        if px < h_width and py >= h_width:
-            copies.append((px + width, py))
-            copies.append((px, py - width))
-            copies.append((px + width, py - width))
-        if px >= h_width and py < h_width:
-            copies.append((px - width, py))
-            copies.append((px, py + width))
-            copies.append((px - width, py + width))
-        if px >= h_width and py >= h_width:
-            copies.append((px - width, py))
-            copies.append((px, py - width))
-            copies.append((px - width, py - width))
-    return(copies)
+    def RNG_Moon_contains(self, p):      
+        # renvoie True si p est dans la lune de [ab], l'intersection des cercles centrés sur a (resp b) qui passe par b (resp a)
+        a, b = self.vertices
+        if a == INF_P:
+            return True
+        elif b == INF_P:
+            return True
+        elif p == INF_P: # cas où a, b, c est fini mais pas p 
+            return False
+        else:
+            return in_RNG_Moon(a, b, p)
 
 if __name__ == "__main__":
-    
     p1 = (0,0)
     p2 = (1,1)
     q1 = (0,1)

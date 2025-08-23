@@ -1,16 +1,22 @@
 import random
+import heapq # pour le MST
 
 import geom # prédicats
 
 class Dart:
     # https://fr.wikipedia.org/wiki/Carte_combinatoire
-    def __init__(self, vertex):
-        self.vertex = vertex  # Coordonnées du sommet de départ
+    def __init__(self, origin):
+        self.origin = origin  # Coordonnées du sommet de départ
         self.twin = None    # Brin opposé (même arête, sens inverse)
         self.next = None    # Brin suivant cw dans la face
 
     def __repr__(self):
-        return f"Dart from ({self.vertex}) to ({self.twin.vertex})"
+        return f"Dart from ({self.origin}) to ({self.twin.origin})"
+
+    @property
+    def target(self):
+        # Brin suivant cw-autour du sommet
+        return self.next.origin
 
     @property
     def alpha1(self):
@@ -19,15 +25,15 @@ class Dart:
     
     @property
     def is_infinite(self):
-        if self.vertex == geom.INF_P or self.twin.vertex == geom.INF_P:
+        if self.origin == geom.INF_P or self.twin.origin == geom.INF_P:
             return True
         return False
     
     @property    
-    def get_dart_vertices(self):
+    def vertices(self):
         # Renvoie tous les sommets du dart
-        a = self.vertex
-        b = self.twin.vertex
+        a = self.origin
+        b = self.target
         return (a, b)
     
     @property
@@ -43,7 +49,21 @@ class Dart:
     @property
     def get_cycle_vertices(self):
         # Renvoie tous les sommets du cycle
-        return [d.vertex for d in self.get_cycle]
+        return [d.origin for d in self.get_cycle]
+    
+    @property
+    def neighbors(self):
+        darts = [self]
+        current_d = self.alpha1
+        while current_d is not self:
+            darts.append(current_d)
+            current_d = current_d.alpha1
+        return darts
+    
+    @property
+    def neighbors_vertices(self):
+        # Renvoie tous les sommets du cycle
+        return [d.target for d in self.neighbors]
     
     def is_cycle(self,n):
         i = 1
@@ -68,8 +88,8 @@ class Dart:
         # les 3 darts de aqb
         d_ba, d_aq, d_qb = self.twin.get_cycle
         # flip des sommets
-        d_ab.vertex = d_qb.vertex
-        d_ba.vertex = d_pa.vertex
+        d_ab.origin = d_qb.origin
+        d_ba.origin = d_pa.origin
         d_qp, d_pq = d_ab, d_ba # on renomme juste pour la lisibilité
         # maj des pointages next
         tri_aqp = [d_aq, d_qp, d_pa]
@@ -77,8 +97,11 @@ class Dart:
         tri_bpq = [d_bp, d_pq, d_qb]
         Dart.set_next_each_other(tri_bpq)
     
+class Graph:
+    def reset(self):
+        self.__init__()
 
-class Delaunay_Triangulation:
+class Delaunay_Triangulation(Graph):
     def __init__(self):
         self.vertices = []
         self.darts = [] # chaque dart stocké correspond à une face
@@ -87,11 +110,10 @@ class Delaunay_Triangulation:
     def edges(self):
         edges = []
         for dart in self.darts:
-            edge = geom.Oriented_Edge(dart.get_dart_vertices) 
-            if not edge.is_infinite and edge.has_0_on_left: # on écrate les aretes infinies et les doublons
+            edge = geom.Oriented_Edge(dart.vertices) 
+            if not edge.is_infinite and edge.has_0_on_left: # on écarte les aretes infinies et les doublons
                 edges.append(edge.vertices)
         return edges
-
 
     @property
     def is_triangulation(self):
@@ -101,6 +123,8 @@ class Delaunay_Triangulation:
         return True
 
     def build(self, points):
+        self.vertices = []
+        self.darts = []
         for p in points:
             self.insert_point(p)
 
@@ -123,8 +147,7 @@ class Delaunay_Triangulation:
 
     def _insert_in_Delaunay(self, p):
         """
-        Insert point p
-        Met à jour les darts
+        Insert point p. Met à jour les darts
         """
         dart = self.find_face_of(p) # On trouve une face en conflit
         if dart == "Point deja existant":
@@ -137,18 +160,24 @@ class Delaunay_Triangulation:
 
     @staticmethod
     def _flip_until_Del(dart): #O(1) en moyenne
-        # recursivement ReDelaunayise après l'ajout d'un point dans un face
+        """
+        ReDelaunayise recursivement après l'ajout d'un point dans un face.
+        Méthode de Lawson (je crois)
+        """
         d_ab = dart
         # les 2 darts qu'il faudra aussi checker si flip
-        d_aq = d_ab.alpha1 
+        d_aq = d_ab.alpha1
         d_qb = d_aq.next
         triangle = geom.Oriented_Triangle(d_ab.get_cycle_vertices)
-        if triangle.is_in_conflict(d_qb.vertex):
+        if triangle.is_in_conflict(d_qb.origin):
             d_ab.flip()
             Delaunay_Triangulation._flip_until_Del(d_aq)
             Delaunay_Triangulation._flip_until_Del(d_qb)
 
     def _init_triangle(self, triangle): # triangle est tuple de 3 sommets
+        """
+            Crée et initialise les darts du premier triangle
+        """ 
         a, b, c = triangle
         if not geom.are_clockwise(a, b, c): # les triangles internes sont clockwise
             b, c = c, b
@@ -179,7 +208,7 @@ class Delaunay_Triangulation:
         triangle_darts = dart.get_cycle
         # création et ajout des 6 nouveaux darts
         new_darts_from_p = [Dart(p), Dart(p), Dart(p)]
-        new_darts_to_p = [Dart(d.vertex) for d in triangle_darts]
+        new_darts_to_p = [Dart(d.origin) for d in triangle_darts]
         self.darts.extend(new_darts_from_p)
         self.darts.extend(new_darts_to_p)
         # mise à jour des alpha 0
@@ -204,7 +233,7 @@ class Delaunay_Triangulation:
             dart = dart.twin # on switch à l'intérieur si on est tombé sur une face infinie
             triangle = geom.Oriented_Triangle(dart.get_cycle_vertices)
         source = geom.gravity_center(dart.get_cycle_vertices) # on part du centre du triangle choisi
-        while not triangle.is_visible_from(target):
+        while not triangle.contains(target):
             crossing_d = Delaunay_Triangulation._find_crossing_dart(dart, source, target)
             dart = crossing_d.twin # on passe à la face suivante
             triangle = geom.Oriented_Triangle(dart.get_cycle_vertices)
@@ -221,52 +250,86 @@ class Delaunay_Triangulation:
         found = False
         while not found:
             d = d.next # donc on teste deja d.next
-            a = d.vertex
-            b = d.twin.vertex
+            a = d.origin
+            b = d.target
             found = geom.segments_intersect(source, target, a, b)
         return d
     
 
 #-------------------------Graphe de Gabriel-----------------------
 
-class Graph:
+class Gabriel_Graph(Graph):
     def __init__(self):
-        self.vertices = []
         self.edges = []
 
-    def extract_Gab_from_Del(self, DT):
-        # Extrait le graphe de Gabriel à partir des faces de Delaunay
-        self.vertices = DT.vertices
+    def extract_from_Del(self, DT):
+        # Extrait le graphe de Gabriel à partir des aretess de Delaunay
+        self.edges = []
         for dart in DT.darts:
-            edge = geom.Oriented_Edge(dart.get_dart_vertices) 
+            edge = geom.Oriented_Edge(dart.vertices) 
             if not edge.is_infinite and edge.has_0_on_left: # on ne prend qu'une arete sur 2
-                p = dart.next.next.vertex
-                q = dart.twin.next.next.vertex               
+                p = dart.next.target
+                q = dart.twin.next.target               
                 if not(edge.Gab_Circle_contains(p) or edge.Gab_Circle_contains(q)):
                     self.edges.append(edge.vertices)
 
-    def extract_RNG_from_Del(self, DT):
-        # Extrait le RNG à partir des faces de Delaunay
+class Rel_Neighbor_Graph(Graph):
+    def __init__(self):
+        self.edges = []
 
-        self.vertices = DT.vertices
+    def extract_from_Del(self, DT):
+        # Extrait le RNG à partir des aretes de Delaunay
+        # Pour chaque arete finie, on teste si sa RNG-Moon est vide
+        self.edges = []
         for dart in DT.darts:
-            if not dart.is_infinite and dart.has_0_on_left: # on ne prend qu'un arete sur 2
-                p = dart.next.next.vertex
-                q = dart.twin.next.next.vertex
-                edge = geom.Oriented_Edge(dart.get_dart_vertices)                
-                if not(edge.Gab_Circle_contains(p) or edge.Gab_Circle_contains(q)):
-                    self.darts.append(dart)
+            edge = geom.Oriented_Edge(dart.vertices)
+            if not dart.is_infinite and edge.has_0_on_left:            
+                if Rel_Neighbor_Graph.empty_right_RNG_Moon(dart) and Rel_Neighbor_Graph.empty_right_RNG_Moon(dart.twin):
+                    self.edges.append(edge.vertices)
 
+    @staticmethod
+    def empty_right_RNG_Moon(dart):
+        """
+            Renvoie un dart dont la face contient p ou est visible par p si infinie
+        """ 
+        # On construit t (target), l'extremité droite de la Moon de ab
+        a, b = dart.vertices
+        ax, ay = a
+        bx, by = b
+        m = geom.gravity_center((a, b)) 
+        mx, my = m
+        tx = mx + (by - ay)
+        ty = my - (bx - ax)
+        target = (tx, ty)
+
+        edge = geom.Oriented_Edge((a, b))                          
+        triangle = geom.Oriented_Triangle(dart.get_cycle_vertices)
+
+        # On marche de triangle en triangle en suivant l'axe mt et testant le sommet p du triangle jusqu'atteindre t
+        # Si on atteint les circumcircles des rtinagles recouvrent (je crois....) Right-RNG-Moon qui est donc vide 
+        while not triangle.contains(target):
+            p = dart.next.target
+            if edge.RNG_Moon_contains(p):
+                return False
+            crossing_d = Delaunay_Triangulation._find_crossing_dart(dart, m, target)
+            dart = crossing_d.twin # on passe à la face suivante
+            triangle = geom.Oriented_Triangle(dart.get_cycle_vertices)
+        return True
+
+        
 
 
 
 
 if __name__ == "__main__":
     points = []
-    for _ in range(60):
+    for _ in range(3):
         x = random.random()
         y = random.random()
         points.append((x, y))
     DT = Delaunay_Triangulation()
     DT.build(points)
     print(DT.is_triangulation)
+    RNG = Rel_Neighbor_Graph()
+    RNG.extract_from_Del(DT)
+    print("OK")
