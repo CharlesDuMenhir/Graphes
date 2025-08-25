@@ -8,9 +8,9 @@ mon_projet_delaunay/
 
 
 A faire:
-Fancyser le menu
-
+Utiliser Vertex_Handle et Face_Handle à la place des darts dans graphs
+Utiliser Vertex, Edge, Triangle Face dans geom, éventuellement Point
+Vertex_Handle contient un Vertex et ses faces incidentes (et ses edges incidentes?)
+Face_Handle contient une face et ses faces voisines 
 
 new features:
-Delaunay sur un tore
-Gabriel Graph

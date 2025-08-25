@@ -1,4 +1,5 @@
 import pygame
+import geom # pour différencier les Edges, des Ray
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -73,9 +74,15 @@ def draw_points(surface, points, color):
         pygame.draw.circle(surface, color, (x*SCALE, y*SCALE), 3*SCALE) 
 
 
-def draw_edges(surface, graph, color, size):
+def draw_edges(surface, graph, color, size, max = 0):
     for edge in graph.edges:
-        a, b = edge
+        if isinstance(edge, geom.Ray):
+            a = edge.vertex
+            b = edge.get_point(max) # pour qu'il sorte de l'écran, mais à distance cohérente
+        else :
+            a, b = edge.points
+            if a == geom.INF_P or b == geom.INF_P: # en pratique c'st inutile de tester les 2
+                continue 
         ax, ay = a
         bx, by = b
         pygame.draw.line(surface, color, (ax*SCALE, ay*SCALE), (bx*SCALE, by*SCALE), size*SCALE)

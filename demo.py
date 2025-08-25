@@ -30,13 +30,16 @@ b_n = window.Button(font, " 100   ", True)
 b_ajout = window.Button(font, " Ajouter point ", True)
 b_suppr = window.Button(font, " Supprimer points ", True)
 t_graph = window.Button(font, "Graphes :")
+b_points = window.Button(font, " Points ", True, True)
 b_Del = window.Button(font, " Delaunay ", True, True)
-b_Gab = window.Button(font, " Gabriel ", False)
+b_Vor = window.Button(font, " Voronoï ")
+b_Vor_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_Vor, True)
+b_Gab = window.Button(font, " Gabriel ")
 b_Gab_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_Gab, True)
-b_RNG = window.Button(font, " RNG ", False)
+b_RNG = window.Button(font, " RNG ")
 b_RNG_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_RNG, True)
-# plus tard :
-#b_MST = window.Button(screen, font, "Min Span Tree")  
+b_MST = window.Button(font, " Min Span Tree")  
+b_MST_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_MST, True)
 
 MENU_LEFT = WIDTH + 10 # décalage pour le texte du menu
 HEIGHT_BOUTONS = 40
@@ -53,25 +56,28 @@ for b in action_buttons:
     b.set_pos(MENU_LEFT, HEIGHT_BOUTONS)
     HEIGHT_BOUTONS += INTER_BOUTONS
 
-b_n.set_pos(b_gen.rect.x + 150, b_gen.rect.y)
+b_n.set_pos(b_gen.rect.x + 200, b_gen.rect.y)
     
 HEIGHT_BOUTONS += INTER_BOUTONS
-graph_buttons = [t_graph, b_Del, b_Gab, b_RNG]
+graph_buttons = [t_graph, b_points, b_Del, b_Vor, b_Gab, b_RNG, b_MST]
 for b in graph_buttons:
     b.set_pos(MENU_LEFT, HEIGHT_BOUTONS)
     HEIGHT_BOUTONS += INTER_BOUTONS
 
-ON_OFF_buttons = [b_Gab_ON_OFF, b_RNG_ON_OFF]
+ON_OFF_buttons = [b_Gab_ON_OFF, b_Vor_ON_OFF, b_RNG_ON_OFF, b_MST_ON_OFF]
 for b in ON_OFF_buttons:
-    b.set_pos(b.cible.rect.x + 100, b.cible.rect.y)
+    b.set_pos(b.cible.rect.x + 150, b.cible.rect.y)
 
 all_buttons = surface_buttons + action_buttons + [b_n] + graph_buttons + ON_OFF_buttons
 
-#Pour les graphes
-H_WIDTH = WIDTH // 2
-DEL_COLOR = "black"
-GAB_COLOR = "red"
+# Pour la fenetre de dessin
+H_WIDTH = WIDTH // 2 # pour le tore
 P_COLOR = (50, 45, 100)
+DEL_COLOR = "black"
+VOR_COLOR = "magenta"
+GAB_COLOR = "red"
+RNG_COLOR = "blue"
+MST_COLOR = "green"
 GRAPH_BACKGROUND = "white"
 
 def main():
@@ -83,12 +89,16 @@ def main():
     n = 300 # nombre de points à générer par defaut
     input_text = " " + str(n)
     b_n.change_text_to(font, input_text)
-    DT = Delaunay_Triangulation() 
+    DT = Delaunay_Triangulation()
+    VD = Voronoi_Diagram()
     GG = Gabriel_Graph()
     RNG = Rel_Neighbor_Graph()
+    MST = Minimal_Spanning_Tree()
+    b_Vor_ON_OFF.graph = VD
     b_Gab_ON_OFF.graph = GG
     b_RNG_ON_OFF.graph = RNG
-    graphs = (DT, GG, RNG)
+    b_MST_ON_OFF.graph = MST
+    graphs = (DT, VD, GG, RNG, MST)
     while running:
         clock.tick(FPS)
         mouse_pos = pygame.mouse.get_pos()
@@ -137,7 +147,7 @@ def main():
                     # et crée les graphes
                     DT.build(points)
                     for b in ON_OFF_buttons:
-                        if b.is_ON:
+                        if b.cible.is_ON:
                             b.graph.extract_from_Del(DT)
 
                 if b_n.rect.collidepoint(mouse_pos):
@@ -147,7 +157,7 @@ def main():
                 if b_ajout.rect.collidepoint(mouse_pos):
                     b_ajout.set_active()
 
-                if x < WIDTH and b_ajout.is_active:
+                if x < WIDTH and b_ajout.is_active:  # gère l'ajout de point dans la fenetre
                     if x < WIDTH : # Si dans le jeu
                         points.append((x, y))
                         DT.insert_point((x,y))
@@ -157,23 +167,20 @@ def main():
                                 DT.insert_point(copie)
                             points.extend(copies) 
                         for b in ON_OFF_buttons:
-                            if b.is_ON:
-                                b.graph.extract_from_Del(DT)
+                            if b.cible.is_ON:
+                                b.graph.extract_from_Del(DT)  # ca recalcule integralement les sous graphs! => possibilité de les désactiver
 
-                if b_suppr.rect.collidepoint(mouse_pos):
-                    #Supprimer les points
+                if b_suppr.rect.collidepoint(mouse_pos): # Supprimer les points
                     points = []
                     for g in graphs:
                         g.reset()
 
-                for b in graph_buttons:
+                for b in graph_buttons:     # Affiche/masque les graphs actifs/inactifs
                     if b.rect.collidepoint(mouse_pos) and b.is_ON:
-                        #Affiche/masque la triangulation
                         b.switch_active()
                 
                 for b in ON_OFF_buttons:
                     if b.rect.collidepoint(mouse_pos):
-                        # desactive
                         if b.cible.is_ON:
                             b.change_text_to(font," OFF ")
                             b.cible.set_inactive()
@@ -184,10 +191,9 @@ def main():
                         b.cible.switch_ON_OFF()
 
             elif event.type == pygame.KEYDOWN:
-                if b_n.is_active:
+                if b_n.is_active:                       # selection du nombre de points
                     if event.key == pygame.K_RETURN:
                         print("Nombre entré :", input_text)
-                        # Tu peux convertir en int ici si besoin
                         try:
                             new_n = int(input_text)
                             max_n = 5000
@@ -211,11 +217,16 @@ def main():
         visu_surface.fill(GRAPH_BACKGROUND)
         if b_Del.is_active:    
                 window.draw_edges(visu_surface, DT, DEL_COLOR, 2)
+        if b_Vor.is_active:    
+                window.draw_edges(visu_surface, VD, VOR_COLOR, 3, WIDTH)
         if b_Gab.is_active:
             window.draw_edges(visu_surface, GG, GAB_COLOR, 3)  
         if b_RNG.is_active:
-            window.draw_edges(visu_surface, RNG, "blue", 3)   
-        window.draw_points(visu_surface, points, P_COLOR)
+            window.draw_edges(visu_surface, RNG, RNG_COLOR, 3)
+        if b_MST.is_active:
+            window.draw_edges(visu_surface, MST, MST_COLOR, 3)
+        if b_points.is_active:
+            window.draw_points(visu_surface, points, P_COLOR)
         scaled_surface = pygame.transform.smoothscale(visu_surface, (WIDTH, HEIGHT))
         screen.blit(scaled_surface, (0, 0))
         window.draw_menu_line(screen, WIDTH, (MENU_WIDTH, HEIGHT))
