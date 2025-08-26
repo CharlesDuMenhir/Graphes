@@ -1,30 +1,37 @@
 import random
 import union_find as uf # pour le MST
 
-import geom # prédicats
+import geom # prédicats et objets géométriques
 
-class Vertex:
-    def __init__(self, point):
-        self.point = point # Coordonnées du sommet
-        self.ref_dart = None  # Dart de référence du sommet, initialisé à l'ajout du premier dart sur ce point, et mis à jour aux flip
+class Vertex(geom.Point):
+    def __init__(self, x, y, w = 1):
+        super().__init__(x, y, w) # geom.Point
+        self.ref_dart = None  # dartde référence du sommet, initialisée à l'ajout du premier dart sur ce point, et mise à jour aux flip
         
     def __repr__(self):
-        return f"Vertex at ({self.point})"
+        return f"Graph point at ({self.coord})"
     
     @property    
-    def incident_darts(self):       # Brin sortants
-        return self.ref_dart.neighbors
-    
-    
+    def incident_darts(self):
+        # Renvoie les brins incidents à self
+        dart_0 = self.ref_dart 
+        darts = [dart_0]
+        current_d = dart_0.rotate
+        while current_d is not dart_0:
+            darts.append(current_d)
+            current_d = current_d.rotate
+        return darts
+
+
 class Dart:
     # https://fr.wikipedia.org/wiki/Carte_combinatoire
     def __init__(self, origin, visited = False):
-        self.origin = origin  # Sommet de départ
-        self.twin = None    # Brin opposé (même arête, sens inverse)
-        self.next = None    # Brin suivant cw dans la face
+        self.origin = origin  # Sommet de départ, Vertex
+        self.twin = None    # Brin opposé (même arête, sens inverse), alpha0
+        self.next = None    # Brin suivant cw dans la face, alpha2
 
     def __repr__(self):
-        return f"Dart from ({self.origin}) to ({self.twin.origin})"
+        return f"Dart from ({self.origin}) to ({self.target})"
 
     @property
     def target(self):
@@ -32,29 +39,21 @@ class Dart:
         return self.next.origin
 
     @property
-    def alpha1(self):
-        # Brin suivant cw-autour du sommet
+    def rotate(self):
+        # Brin suivant cw-autour du sommet, alpha1
         return self.twin.next
     
     @property
-    def is_infinite(self):
-        if self.origin.point == geom.INF_P or self.twin.origin.point == geom.INF_P:
-            return True
-        return False
+    def edge(self):
+        a, b = self.origin, self.target
+        return geom.Edge(a, b)
     
-    @property    
-    def vertices(self):
-        # Renvoie tous les sommets du dart
+    @property
+    def face(self):
         a = self.origin
         b = self.target
-        return (a, b)
-    
-    @property    
-    def points(self):
-        # Renvoie tous les sommets du dart
-        p = self.origin.point
-        q = self.target.point
-        return (p, q)
+        c = self.next.target
+        return geom.Triangle(a, b, c)
     
     @property
     def cycle(self):
@@ -65,30 +64,6 @@ class Dart:
             darts.append(current_d)
             current_d = current_d.next
         return darts
-
-    @property
-    def cycle_vertices(self):
-        # Renvoie tous les sommets du cycle
-        return [d.origin for d in self.cycle]
-    
-    @property
-    def cycle_points(self):
-        # Renvoie tous les sommets du cycle
-        return [d.origin.point for d in self.cycle]
-    
-    @property
-    def neighbors(self):
-        darts = [self]
-        current_d = self.alpha1
-        while current_d is not self:
-            darts.append(current_d)
-            current_d = current_d.alpha1
-        return darts
-    
-    @property
-    def neighbors_vertices(self):
-        # Renvoie tous les sommets du cycle
-        return [d.target for d in self.neighbors]
     
     def is_cycle(self,n):
         i = 1
@@ -107,15 +82,26 @@ class Dart:
         for i in range(len(darts)):
             darts[i-1].next = darts[i]
 
-    def flip(self): #
-        # dans une face aqbp flip d_ab en d_qp
+    def choose_unique_finite(self):
+        # Renvoie False si le dart est infini ainsi que pour un dart des 2 twins
+        a = self.origin
+        b = self.target
+        inf_V = geom.Point(0, 0, 0)
+        if a == inf_V or b == inf_V or geom.are_clockwise(a.coord, b.coord, (0, 0)):
+            return False
+        return True
+        
+    def flip(self): 
+        """
+        Dans un quadrilatere paqb, flip ab (self) en pq
+        """
         d_ab, d_bp, d_pa = self.cycle
         # les 3 darts de aqb
         d_ba, d_aq, d_qb = self.twin.cycle
         #On met à jour les darts de reference des sommets si besoin
         for d in (d_ab, d_ba):
             if d.origin.ref_dart == d:
-                d.origin.ref_dart = d.alpha1 # on choisit alors d.alpha1 car il n'est pas modifié par le flip en cours
+                d.origin.ref_dart = d.rotate # on choisit alors d.rotate car il n'est pas modifié par le flip en cours
         # flip des sommets
         d_ab.origin = d_qb.origin
         d_ba.origin = d_pa.origin
@@ -135,18 +121,19 @@ class Graph:
 #----------------------------------------------------Delaunay triangulation
 class Delaunay_Triangulation(Graph):
     def __init__(self):
-        self.vertices = []
-        self.inf_vertex = Vertex(geom.INF_P)  
+        self.vertices = [Vertex(0, 0, 0)] # initialement on considère le sommet à l'infini
         self.darts = []
+
+    def reset(self):
+        self.__init__()
+
+    @property
+    def unique_finite_darts(self):
+        return [dart for dart in self.darts if dart.choose_unique_finite()]
 
     @property
     def edges(self): # utilisé pour l'affichage
-        edges = []
-        for dart in self.darts:
-            edge = geom.Oriented_Edge(dart.points) 
-            if not edge.is_infinite and edge.has_0_on_left: # on écarte les aretes infinies et les doublons
-                edges.append(edge)
-        return edges
+        return [dart.edge for dart in self.unique_finite_darts]
 
     @property
     def is_triangulation(self):
@@ -156,123 +143,107 @@ class Delaunay_Triangulation(Graph):
         return True
 
     def build(self, points):
-        self.vertices = []
-        self.darts = []
+        self.reset()
         for p in points:
             self.insert_point(p)
 
-
     def insert_point(self, p):
-        v = Vertex(p)
+        x, y = p
+        v = Vertex(x, y)
         self.vertices.append(v)
-        if len(self.vertices) == 1:
-            return
         if len(self.vertices) == 2:
-            if p == self.vertices[0]:
-                self.vertices.pop() # pour éviter les points doubles (doubles clics)
             return
         if len(self.vertices) == 3:
-            if p == self.vertices[0] or p == self.vertices[1]:
-                self.vertices.pop()
+            if p == self.vertices[1]:
+                self.vertices.pop() # pour éviter les points doubles (doubles clics)
+                return
             else:
-                self._init_first_triangle(self.vertices)
+                self._init_first_faces()
             return
-        # si la triangulation est déjà créee, on insert le point
+        # si la triangulation est déjà créée, on insert le point
         self._insert_in_Delaunay(v)
 
-
-    def _init_first_triangle(self, triangle): # triangle est tuple de 3 Vertex
+    def _init_first_faces(self):
         """
-            Crée et initialise les darts du premier triangle
+        Crée et initialise les 6 premiers darts (4 infinis et 2 finis)
         """ 
-        a, b, c = triangle
-        if not geom.are_clockwise(a.point, b.point, c.point): # les triangles internes DOIVENT etre clockwise
-            b, c = c, b
-        # on crée les 12 nouveaux darts du premier triangles (6 finis, 6 infinis)
-        internal_darts = [Dart(a), Dart(b), Dart(c)]
-        self.darts.extend(internal_darts)
-        for i,v in enumerate((a, b, c)):
-            v.ref_dart = internal_darts[i]
-        external_darts = [Dart(b), Dart(c), Dart(a)]
-        self.darts.extend(external_darts)
-        infinite_darts_to_inf = [Dart(a), Dart(b), Dart(c)]
-        self.darts.extend(infinite_darts_to_inf)
-        self.inf_vertex.ref_dart = infinite_darts_to_inf[0]
-        infinite_darts_from_inf = [Dart(self.inf_vertex), Dart(self.inf_vertex), Dart(self.inf_vertex)]
-        self.darts.extend(infinite_darts_from_inf)
-        # on met à jour leurs liens
-        Dart.set_next_each_other(internal_darts)
+        a, b, c = self.vertices
+        # initialisation des darts
+        darts_A = [Dart(a), Dart(b), Dart(c)]
+        darts_B = [Dart(b), Dart(c), Dart(a)]
+        # maj des refs, twin, next
         for i in range(3):
-            Dart.set_twin_each_other(internal_darts[i], external_darts[i])
-            Dart.set_twin_each_other(infinite_darts_to_inf[i], infinite_darts_from_inf[i])
-            external_darts[i].next = infinite_darts_to_inf[i]
-            infinite_darts_to_inf[i].next = infinite_darts_from_inf[(i+1)%3]
-            infinite_darts_from_inf[i].next = external_darts[i-1]        
-
+            self.vertices[i].ref_dart = darts_A[i]   # chaque sommet est reférencé par un dart, mis à jour aux flips
+            Dart.set_twin_each_other(darts_A[i], darts_B[i])
+        Dart.set_next_each_other(darts_A)
+        Dart.set_next_each_other(darts_B[::-1])
+        # ajout dans la liste
+        self.darts.extend(darts_A)
+        self.darts.extend(darts_B)
 
     def _insert_in_Delaunay(self, v):
         """
-        Insert point p. Met à jour les darts
+        Insert graph point v (Vertex). Met à jour les darts
         """
-        dart = self.find_triangle_of(v.point) # On trouve une face en conflit
+        dart = self.segment_walk_to(v) # On trouve une face en conflit
         if dart == "Point deja existant":
             self.vertices.pop()
-            print("Point non ajouté")
             return
         darts_to_flip = self._init_new_darts(dart, v) # On relie la triangualtion avec les nouveaux darts
         for dart in darts_to_flip: # Et on rétablit recursivement la propriété de Delanuay
             Delaunay_Triangulation._flip_until_Del(dart)
 
 
-    def find_triangle_of(self, target):
+    def segment_walk_to(self, target):
         """
             target: le point inséré, dont il on cherche le triangle qui le contient
             Recherche par segment walk
             Renvoie un dart dont la face contient p ou est visible par p si infinie
         """ 
         # choix de la source aléatoire, mais il faut éviter les triangles infinis
+        # Au premier appel, il n'y a pas de triangle fini mais ce n'est pas grave car on tombe assez vite dans la
         dart = random.choice(self.darts) # On part d'un dart random
-        triangle = geom.Oriented_Triangle(dart.cycle_points)
-        if triangle.is_infinite: # si c'est une face infinie, on change de dart pour rentrer dans l'enveloppe convexe
-            while dart.is_infinite: # on cherche le dart fini
-                dart = dart.next
-            dart = dart.twin # puis on switch à l'intérieur de l'enveloppe convexe
-            triangle = geom.Oriented_Triangle(dart.cycle_points)
-        source = geom.gravity_center(dart.cycle_points) # on part du centre du triangle choisi
-
+        triangle = dart.face
+        found = target.is_in_triangle(triangle)
+        if not found:
+            if triangle.is_infinite: # si c'est une face infinie, on change de dart pour rentrer dans l'enveloppe convexe
+                while dart.edge.is_infinite: # on cherche le dart fini
+                    dart = dart.next
+                dart = dart.twin # puis on switch à l'intérieur de l'enveloppe convexe
+                triangle = dart.face # 2 cas possibles: Soit target est dans triangle, soit triangle est fini
+                found = target.is_in_triangle(triangle)
+            source = triangle.centroid # on part du centre du triangle choisi
+            segment = geom.Edge(source, target)
         # Recherche du triangle contenant p
-        while not triangle.contains(target):
-            crossing_d = Delaunay_Triangulation._find_crossing_dart(dart, source, target) # identification du segment du triangle qui coupe [sp] 
-            dart = crossing_d.twin # on passe à la face suivante
-            triangle = geom.Oriented_Triangle(dart.cycle_points)
+        while not found:
+            dart = Delaunay_Triangulation._find_crossing_dart(dart, segment) # identification du segment du triangle qui coupe [sp] 
+            triangle = dart.face
+            found = target.is_in_triangle(triangle)
             if triangle.is_infinite:
                 break # dans ce cas, target est hors de l'enveloppe convexe, comme on en vient, dart est visible par target
-        
         # Si le point est un sommet du triangle, on ne l'ajoutera pas
-        if target in triangle.points:
+        if target in triangle.vertices:
             return "Point deja existant"
         return dart
-    
 
     @staticmethod
-    def _find_crossing_dart(d, source, target):
+    def _find_crossing_dart(d, segment):
         """
         d : un dart de la face.
-        Renvoie le dart de la face qui intersect source-target
+        Renvoie le dart de la face qui intersect le segment
         par construction, on ne peut pas retomber sur le dart de départ
         """
         found = False
         while not found:
             d = d.next # donc on teste deja d.next
-            a = d.origin.point  
-            b = d.target.point
-            found = geom.segments_intersect(source, target, a, b)
-        return d
-
+            edge = d.edge
+            found = edge.intersects(segment)
+        return d.twin
 
     def _init_new_darts(self, dart, v):
         """
-            Crée et initialise les darts liés à l'ajout du point p. On n'a temporairement plus une triangulation de Delaunay.
+            dart : un dart de la face qui contient v: Vertex à ajouter
+            Crée et initialise les darts liés à l'ajout du sommet v. On n'a temporairement plus une triangulation de Delaunay.
             Renvoie les darts qu'il faut tester et flipper si necessaires 
         """ 
         triangle_darts = dart.cycle
@@ -292,7 +263,6 @@ class Delaunay_Triangulation(Graph):
             new_darts_to_v[i].next = new_darts_from_v[(i+2)%3]   
         return triangle_darts
 
-
     @staticmethod
     def _flip_until_Del(dart): #O(1) en moyenne
         """
@@ -301,10 +271,11 @@ class Delaunay_Triangulation(Graph):
         """
         d_ab = dart
         # les 2 darts qu'il faudra aussi checker si flip
-        d_aq = d_ab.alpha1
+        d_aq = d_ab.rotate
         d_qb = d_aq.next
-        triangle = geom.Oriented_Triangle(d_ab.cycle_points)
-        if triangle.is_in_conflict(d_qb.origin.point):
+        triangle = d_ab.face
+        p = d_qb.origin
+        if p.is_in_circumcircle(triangle):
             d_ab.flip()
             Delaunay_Triangulation._flip_until_Del(d_aq)
             Delaunay_Triangulation._flip_until_Del(d_qb)
@@ -327,49 +298,26 @@ class Voronoi_Diagram(Graph):
             Détermine les cellules de voronoï.
             Leur sommets sont les circumcentres des triangles de Delaunay 
         """
-        self.cells = []
-        vertices = DT.vertices
-        if len(vertices) <= 2:
+        self.reset()
+        vertices = DT.vertices[1:]
+        if len(vertices) <= 1:
             return
-        for v1 in vertices:
+        for v1 in vertices:  # pour chaque sommet fini
             cell_edges = []
             d = v1.incident_darts[0]
-            triangle = geom.Oriented_Triangle(d.cycle_points)
+            triangle = d.face
             first_center = triangle.circumcenter
             for d in v1.incident_darts:
-                next_triangle = geom.Oriented_Triangle(d.alpha1.cycle_points)
+                v2 = d.target
+                next_d = d.rotate
+                next_triangle = next_d.face
                 second_center = next_triangle.circumcenter
-                if first_center == geom.INF_P and second_center != geom.INF_P:
-                    x_v1, y_v1 = d.origin.point
-                    x_v2, y_v2 = d.target.point
-                    dir = ((y_v2 - y_v1), -(x_v2 - x_v1))
-                    new_edge = geom.Ray(second_center, dir)
-                elif first_center != geom.INF_P and second_center == geom.INF_P:
-                    x_v1, y_v1 = d.origin.point
-                    x_v2, y_v2 = d.target.point
-                    dir = (-(y_v2 - y_v1), (x_v2 - x_v1))
-                    new_edge = geom.Ray(first_center, dir)
-                else:
-                    new_edge = geom.Oriented_Edge((first_center, second_center))
+                new_edge = geom.Edge(first_center, second_center, geom.Point.midpoint(v1, v2))
                 first_center = second_center
+                if v2.is_infinite:
+                    continue
                 cell_edges.append(new_edge)
             self.cells.append(geom.Cell(cell_edges))
-
-"""
-# médiatrice de ab
-a, b = vertices
-x_a, y_a = a.point
-x_b, y_b = b.point
-x_m, y_m = geom.gravity_center((a.point, b.point))
-x_dir, y_dir = -(y_b - y_a), x_b - x_a
-p = (x_m + x_dir, y_m + y_dir)
-q = (x_m - x_dir, y_m - y_dir)
-new_cell = geom.Oriented_Polygone((p, q))
-
-"""
-
-        
-
 
 
 #-------------------------Graphe de Gabriel-----------------------
@@ -380,14 +328,13 @@ class Gabriel_Graph(Graph):
 
     def extract_from_Del(self, DT):
         # Extrait le graphe de Gabriel à partir des aretess de Delaunay
-        self.edges = []
-        for dart in DT.darts:
-            edge = geom.Oriented_Edge(dart.points) 
-            if not edge.is_infinite and edge.has_0_on_left: # on ne prend qu'une arete sur 2
-                p = dart.next.target.point
-                q = dart.twin.next.target.point              
-                if not(edge.Gab_Circle_contains(p) or edge.Gab_Circle_contains(q)):
-                    self.edges.append(edge)
+        self.reset()
+        for d in DT.unique_finite_darts:
+            edge = d.edge
+            p = d.next.target
+            q = d.twin.next.target             
+            if not(p.is_in_Gab_circle(edge) or q.is_in_Gab_circle(edge)):
+                self.edges.append(edge)
 
 #-------------------------Relative neighbors graph-----------------------
 
@@ -398,40 +345,34 @@ class Rel_Neighbor_Graph(Graph):
     def extract_from_Del(self, DT):
         # Extrait le RNG à partir des aretes de Delaunay
         # Pour chaque arete finie, on teste si sa RNG-Moon est vide
-        self.edges = []
-        for dart in DT.darts:
-            edge = geom.Oriented_Edge(dart.points)
-            if not dart.is_infinite and edge.has_0_on_left:            
-                if Rel_Neighbor_Graph.empty_right_RNG_Moon(dart) and Rel_Neighbor_Graph.empty_right_RNG_Moon(dart.twin):
-                    self.edges.append(edge)
+        self.reset()
+        for d in DT.unique_finite_darts:
+            edge = d.edge          
+            if Rel_Neighbor_Graph.empty_right_RNG_moon(d) and Rel_Neighbor_Graph.empty_right_RNG_moon(d.twin):
+                self.edges.append(edge)
 
     @staticmethod
-    def empty_right_RNG_Moon(dart):
+    def empty_right_RNG_moon(dart):
         """
             Renvoie un dart dont la face contient p ou est visible par p si infinie
         """ 
         # On construit t (target), l'extremité droite de la Moon de ab
-        a, b = dart.points
-        ax, ay = a
-        bx, by = b
-        m = geom.gravity_center((a, b)) 
-        mx, my = m
-        tx = mx + (by - ay)
-        ty = my - (bx - ax)
-        target = (tx, ty)
-
-        edge = geom.Oriented_Edge((a, b))                          
-        triangle = geom.Oriented_Triangle(dart.cycle_points)
-
+        edge = dart.edge
+        a, b = edge.vertices
+        m = geom.Point((a.x + b.x) / 2, (a.y + b.y) / 2)
+        t_x = m.x + (b.y - a.y)
+        t_y = m.y - (b.x - a.x)
+        t = geom.Point(t_x, t_y)
+        segment = geom.Edge(m, t)                      
+        triangle = dart.face
         # On marche de triangle en triangle en suivant l'axe (mt) et testant le sommet p du triangle jusqu'atteindre t
-        # Si on atteint les circumcircles des rtinagles recouvrent (je crois....) Right-RNG-Moon qui est donc vide 
-        while not triangle.contains(target):
-            p = dart.next.target.point
-            if edge.RNG_Moon_contains(p):
+        # Si on atteint t, les circumcircles des triangles recouvrent (je crois....) Right-RNG-Moon qui est donc vide 
+        while not t.is_in_triangle(triangle):
+            p = dart.next.target
+            if p.is_in_RNG_moon(edge):
                 return False
-            crossing_d = Delaunay_Triangulation._find_crossing_dart(dart, m, target)
-            dart = crossing_d.twin # on passe à la face suivante
-            triangle = geom.Oriented_Triangle(dart.cycle_points)
+            dart = Delaunay_Triangulation._find_crossing_dart(dart, segment)
+            triangle = dart.face
         return True
     
 #-------------------------Minimal spanning tree-----------------------
@@ -441,31 +382,17 @@ class Minimal_Spanning_Tree(Graph):
         self.edges = []
 
     def extract_from_Del(self, DT):
-        self.edges = []
-        vertices = DT.vertices
-        if len(vertices) == 2:
-            a, b = vertices
-            self.edges.append((a.point, b.point))
-            return
+        self.reset()
+        edges = DT.edges
+        edges.sort(key = lambda edge: edge.square_length)
 
-        # a recoder avec une autre structure de données, trop d'aller retour point/vertex illisibles Edges de point, edge de tuple....
-
-        edges = []
-        for dart in DT.darts:
-            edge = geom.Oriented_Edge(dart.points) 
-            if not edge.is_infinite and edge.has_0_on_left: # on écarte les aretes infinies et les doublons
-                edges.append(dart.vertices)
-
-        edges.sort(key = lambda edge: geom.square_dist(edge[0].point, edge[1].point))
-
-        for v in vertices:
+        for v in DT.vertices:
             uf.make_set(v)
 
         for edge in edges:
-            u, v = edge # pair de vertex
-            if uf.union(u, v):
-                new_edge = geom.Oriented_Edge((u.point,v.point))
-                self.edges.append(new_edge)
+            a, b = edge.vertices # paire de Point
+            if uf.union(a, b):
+                self.edges.append(edge)
 
 
 

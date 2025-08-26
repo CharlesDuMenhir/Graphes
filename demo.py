@@ -3,7 +3,7 @@ import pygame
 import random
 
 #imports locaux
-from graphs import *
+from graphs2 import *
 import window
 
 pygame.init()
@@ -84,6 +84,7 @@ def main():
     running = True
     pygame.display.set_caption("Triangulation 2D")
     clock = pygame.time.Clock()
+    first_refresh = True
 
     points = []
     n = 300 # nombre de points à générer par defaut
@@ -212,27 +213,33 @@ def main():
                         input_text += event.unicode
                     b_n.change_text_to(font," " + input_text)
 
+            screen.fill(window.DARK_BLUE)
+            visu_surface.fill(GRAPH_BACKGROUND)
+            if b_Del.is_active:    
+                    window.draw_edges(visu_surface, DT, DEL_COLOR, 2)
+            if b_Vor.is_active:    
+                    window.draw_edges(visu_surface, VD, VOR_COLOR, 3, WIDTH)
+            if b_Gab.is_active:
+                window.draw_edges(visu_surface, GG, GAB_COLOR, 3)  
+            if b_RNG.is_active:
+                window.draw_edges(visu_surface, RNG, RNG_COLOR, 3)
+            if b_MST.is_active:
+                window.draw_edges(visu_surface, MST, MST_COLOR, 3)
+            if b_points.is_active:
+                window.draw_points(visu_surface, points, P_COLOR)
+            scaled_surface = pygame.transform.smoothscale(visu_surface, (WIDTH, HEIGHT))
+            screen.blit(scaled_surface, (0, 0))
+            window.draw_menu_line(screen, WIDTH, (MENU_WIDTH, HEIGHT))
+            for b in all_buttons:
+                window.draw_button(screen, b, mouse_pos)
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                pygame.display.flip()     # Affiche le rendu seulement aux clic pour éviter de rafraichir constamment
+
+        if first_refresh:
+            pygame.display.flip() # on fait quand même un refresh au début pour afficher le menu
+            first_refresh = False
         
-        screen.fill(window.DARK_BLUE)
-        visu_surface.fill(GRAPH_BACKGROUND)
-        if b_Del.is_active:    
-                window.draw_edges(visu_surface, DT, DEL_COLOR, 2)
-        if b_Vor.is_active:    
-                window.draw_edges(visu_surface, VD, VOR_COLOR, 3, WIDTH)
-        if b_Gab.is_active:
-            window.draw_edges(visu_surface, GG, GAB_COLOR, 3)  
-        if b_RNG.is_active:
-            window.draw_edges(visu_surface, RNG, RNG_COLOR, 3)
-        if b_MST.is_active:
-            window.draw_edges(visu_surface, MST, MST_COLOR, 3)
-        if b_points.is_active:
-            window.draw_points(visu_surface, points, P_COLOR)
-        scaled_surface = pygame.transform.smoothscale(visu_surface, (WIDTH, HEIGHT))
-        screen.blit(scaled_surface, (0, 0))
-        window.draw_menu_line(screen, WIDTH, (MENU_WIDTH, HEIGHT))
-        for b in all_buttons:
-            window.draw_button(screen, b, mouse_pos)
-        pygame.display.flip()     # Affiche le rendu
 
     pygame.quit()
     sys.exit()
