@@ -5,15 +5,15 @@ def make_set(x):
     x.parent = x  # Chaque élément est son propre parent
     x.rank = 0    # Rangs pour optimiser les unions
 
-def repr(x):    # usuel find
+def find(x):    # usuel find
     # renvoie le représentant. + Compression de chemin : raccourcit les branches
     if x.parent != x:
-        x.parent = repr(x.parent)
+        x.parent = find(x.parent)
     return x.parent
 
 def union(x, y):
     # Trouver les racines
-    rx, ry = repr(x), repr(y)
+    rx, ry = find(x), find(y)
     if rx == ry:
         return False  # Déjà connectés
 

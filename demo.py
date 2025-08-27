@@ -1,10 +1,21 @@
+"""
+DEMO DE TRIANGULATION 2D ET GRAPHE DE VORONOÏ/GABRIEL/RNG/MST
+
+Ce script lance une interface pygame pour manipuler et visualiser la triangulation de Delaunay,
+le diagramme de Voronoï, le graphe de Gabriel, le graphe des voisins relatifs et l'arbre couvrant minimal.
+
+ATTENTION : Ce code est monolithique, peu modulaire, et pas très élégant, mais il fonctionne et c'est tout ce qui compte ici.
+
+Merci à Copilot pour les docstrings et autres améliorations de code
+"""
+
 import sys #pour fermer proprement le script
 import pygame
 import random
 
 #imports locaux
-from graphs2 import *
-import window
+from graphs import *
+import interface
 
 pygame.init()
 
@@ -14,32 +25,32 @@ FPS = 60
 WIDTH, HEIGHT = 700, 700 # fenetre de jeu
 MENU_WIDTH = 300 # fenetre du menu
 FONT_SIZE = 15
+SCALE = 3
+
 screen = pygame.display.set_mode((WIDTH + MENU_WIDTH, HEIGHT))
 font = pygame.font.SysFont("Verdana", FONT_SIZE)
-
-SCALE = window.SCALE
 visu_surface = pygame.Surface((WIDTH * SCALE, HEIGHT * SCALE))  # "écran des graphes",sera rescalée, c'est pour le rendu
 
 #menu
-t_surf = window.Button(font, "Surfaces :")
-b_plane = window.Button(font, " Plan ", True, True)
-b_torus = window.Button(font, " Tore plat ", True)
-t_act = window.Button(font, "Actions :")
-b_gen = window.Button(font, " Générer points ", True)
-b_n = window.Button(font, " 100   ", True)
-b_ajout = window.Button(font, " Ajouter point ", True)
-b_suppr = window.Button(font, " Supprimer points ", True)
-t_graph = window.Button(font, "Graphes :")
-b_points = window.Button(font, " Points ", True, True)
-b_Del = window.Button(font, " Delaunay ", True, True)
-b_Vor = window.Button(font, " Voronoï ")
-b_Vor_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_Vor, True)
-b_Gab = window.Button(font, " Gabriel ")
-b_Gab_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_Gab, True)
-b_RNG = window.Button(font, " RNG ")
-b_RNG_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_RNG, True)
-b_MST = window.Button(font, " Min Span Tree")  
-b_MST_ON_OFF = window.ON_OFF_Button(font, " OFF ", b_MST, True)
+t_surf = interface.Button(font, "Surfaces :")
+b_plane = interface.Button(font, " Plan ", True, True)
+b_torus = interface.Button(font, " Tore plat ", True)
+t_act = interface.Button(font, "Actions :")
+b_gen = interface.Button(font, " Générer points ", True)
+b_n = interface.Button(font, " 100   ", True)
+b_ajout = interface.Button(font, " Ajouter point ", True)
+b_suppr = interface.Button(font, " Supprimer points ", True)
+t_graph = interface.Button(font, "Graphes :")
+b_points = interface.Button(font, " Points ", True, True)
+b_Del = interface.Button(font, " Delaunay ", True, True)
+b_Vor = interface.Button(font, " Voronoï ")
+b_Vor_ON_OFF = interface.ON_OFF_Button(font, " OFF ", b_Vor, True)
+b_Gab = interface.Button(font, " Gabriel ")
+b_Gab_ON_OFF = interface.ON_OFF_Button(font, " OFF ", b_Gab, True)
+b_RNG = interface.Button(font, " RNG ")
+b_RNG_ON_OFF = interface.ON_OFF_Button(font, " OFF ", b_RNG, True)
+b_MST = interface.Button(font, " Min Span Tree")  
+b_MST_ON_OFF = interface.ON_OFF_Button(font, " OFF ", b_MST, True)
 
 MENU_LEFT = WIDTH + 10 # décalage pour le texte du menu
 HEIGHT_BOUTONS = 40
@@ -126,7 +137,7 @@ def main():
                     if not b_torus.is_active:
                         b_plane.set_inactive()
                         b_torus.set_active()
-                        copies = window.create_copies(points, WIDTH)
+                        copies = interface.create_copies(points, WIDTH)
                         points.extend(copies)
                         DT.build(points)
                         for b in ON_OFF_buttons:
@@ -143,7 +154,7 @@ def main():
                         y = HEIGHT * random.random()
                         points.append((x,y))
                     if b_torus.is_active:  # on considère qu'il y a suffisament de points pour éviter les dummy points
-                        copies = window.create_copies(points, WIDTH)
+                        copies = interface.create_copies(points, WIDTH)
                         points.extend(copies)
                     # et crée les graphes
                     DT.build(points)
@@ -163,7 +174,7 @@ def main():
                         points.append((x, y))
                         DT.insert_point((x,y))
                         if b_torus.is_active:
-                            copies = window.create_copies([(x,y)], WIDTH)
+                            copies = interface.create_copies([(x,y)], WIDTH)
                             for copie in copies:
                                 DT.insert_point(copie)
                             points.extend(copies) 
@@ -213,25 +224,25 @@ def main():
                         input_text += event.unicode
                     b_n.change_text_to(font," " + input_text)
 
-            screen.fill(window.DARK_BLUE)
+            screen.fill(interface.DARK_BLUE)
             visu_surface.fill(GRAPH_BACKGROUND)
             if b_Del.is_active:    
-                    window.draw_edges(visu_surface, DT, DEL_COLOR, 2)
+                    interface.draw_edges(visu_surface, DT, DEL_COLOR, 2, SCALE)
             if b_Vor.is_active:    
-                    window.draw_edges(visu_surface, VD, VOR_COLOR, 3, WIDTH)
+                    interface.draw_edges(visu_surface, VD, VOR_COLOR, 3, SCALE, WIDTH)
             if b_Gab.is_active:
-                window.draw_edges(visu_surface, GG, GAB_COLOR, 3)  
+                interface.draw_edges(visu_surface, GG, GAB_COLOR, 3, SCALE)  
             if b_RNG.is_active:
-                window.draw_edges(visu_surface, RNG, RNG_COLOR, 3)
+                interface.draw_edges(visu_surface, RNG, RNG_COLOR, 3, SCALE)
             if b_MST.is_active:
-                window.draw_edges(visu_surface, MST, MST_COLOR, 3)
+                interface.draw_edges(visu_surface, MST, MST_COLOR, 3, SCALE)
             if b_points.is_active:
-                window.draw_points(visu_surface, points, P_COLOR)
+                interface.draw_points(visu_surface, points, P_COLOR, 2, SCALE)
             scaled_surface = pygame.transform.smoothscale(visu_surface, (WIDTH, HEIGHT))
             screen.blit(scaled_surface, (0, 0))
-            window.draw_menu_line(screen, WIDTH, (MENU_WIDTH, HEIGHT))
+            interface.draw_menu_line(screen, WIDTH, (MENU_WIDTH, HEIGHT))
             for b in all_buttons:
-                window.draw_button(screen, b, mouse_pos)
+                interface.draw_button(screen, b, mouse_pos)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pygame.display.flip()     # Affiche le rendu seulement aux clic pour éviter de rafraichir constamment
